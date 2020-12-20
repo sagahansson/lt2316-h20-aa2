@@ -3,7 +3,8 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
+#import torch.nn.functional as F
+from sklearn.metrics import accuracy_score, recall_score, f1_score, precision_score
 
 class Batcher:
     def __init__(self, X, y, device, batch_size=50, max_iter=None):
@@ -90,15 +91,15 @@ class Trainer:
         hid_size = hyperparameters['hid_dim']
         izer = hyperparameters['optimizer']
         loss_function = hyperparameters['loss_funct']
+        print(loss_function)
         mod_name = hyperparameters['model_name']
         
         device = self.device
         
         
-        batches = Batcher(train_X, train_y, device, max_iter=epochs)
-        
+        batcher = Batcher(train_X, train_y, device, max_iter=epochs) # epochs of batches 
         in_size = train_X.shape[2] # = 5 : num_features
-        out_size = 5 # jo nu är den det igen # nej nu är det något annat välkommen # num_labels, len of id2ner
+        out_size = 102
         
         m = model_class(in_size, hid_size, out_size, n_layers)
         m = m.to(device)
@@ -106,29 +107,67 @@ class Trainer:
         opt = getattr(optim, izer)(m.parameters(), lr=lr)
         
         epoch = 0
-        for batch in batches:
+        for e in batcher:
+            m.train()
             tot_loss = 0
-            for sent, labels in batch:
+            for batch, labels in e:
                 opt.zero_grad()
-                print("MODEL:", m)
-                print("SENT SHAPE", sent.shape)
-                out = m(sent.to(device), device)
-                print("OUT SHAPE", out.shape)
-                print("LABELS SHAPE", labels.shape)
-                print("LABELS", labels)
-                out = out.reshape(out.shape[0]*out.shape[1], out.shape[2])
-                print("NEW OUT SHAPE", out.shape)
-                labels = labels.reshape(labels.shape[0]*labels.shape[1], 1)
+                #print("MODEL:", m)
+                #print("BATCH SHAPE", batch.shape)
+                out = m(batch.float().to(device), device)
+                
+                #out, b = torch.max(out, 2)
+                #print(out)
+                #print("OUT SHAPE", out.shape)
+                #print("LABELS SHAPE", labels.shape)
+                #print("LABELS", labels)
+                #out = out.reshape(out.shape[0]*out.shape[1], out.shape[2])
+                #print("NEW OUT SHAPE", out.shape)
+                #labels = labels.reshape(labels.shape[0]*labels.shape[1], 1)
+                #print("NEW LABELS SHAPE", labels.shape)
                 #out = out.reshape(out.shape[0], out.shape[2], out.shape[1]) #gör den till [50, 5, 102] ist för [50, 102, 5]
-                l = loss()(out.to(device), labels.to(device))
+                l = loss()(out.to(device), labels.float().to(device))
+                
                 tot_loss += l
                 l.backward()
                 opt.step()
-                aosjdnoais
-            print("Total loss in epoch {} is {}".format(epoch, tot_loss))
+            print("Total loss in epoch {} is {}".format(epoch, tot_loss))        
             epoch += 1
+            
+            
+#            validation
+            pred = []
+            y = []
+            m.eval()
+            val_batcher = Batcher(val_X, val_y, device, max_iter=1)
+            for val_e in val_batcher:
+                for batch, labels in val_e:
+                    with torch.no_grad():
+                        out = m(batch.float().to(device), device)
+                        out = torch.round(out)
+                        out = out.reshape(-1).tolist()
+                        labels = labels.reshape(-1).tolist()
+                pred.extend(out)
+                y.extend(labels)
+        
+        acc = accuracy_score(y, pred)
+        prec = precision_score(y, pred, average='weighted')
+        rec = recall_score(y, pred, average='weighted')
+        f1 = f1_score(y, pred, average='weighted')
+        
+        scores = {
+            "accuracy" : acc,
+            "precision": prec,
+            "recall"   : rec,
+            "f1-score" : f1
+        }
+        
+        print("Model name: {}, \n Accuracy: {}, \n Precision: {}, Recall: {}, F1-Score:{}".format(mod_name, acc, prec, rec, f1))  
+                        
+            
+        
         print('hello got all the way here')
-                
+        return out            
         
         
         #loss crossent, l1
