@@ -13,11 +13,7 @@ class Net(nn.Module):
     def forward(self, batch, device):
         
         out, h_out = self.gru(batch)
-        #print('out shape', out.shape)
-        #print('h_out shape', h_out.shape)
-        #print('h_out[-1] shape', h_out[-1].shape)
-        #h_out = torch.sum(h_out, 0)
-        pred = self.fc(h_out[-1])
-        #print('pred shape', pred.shape)
+        #pred = self.fc(h_out[-1])
+        pred = self.fc(out)
         
         return pred

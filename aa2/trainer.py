@@ -100,6 +100,10 @@ class Trainer:
         batcher = Batcher(train_X, train_y, device, max_iter=epochs) # epochs of batches 
         in_size = train_X.shape[2] # = 5 : num_features
         out_size = 102
+        if loss_function == "CrossEntropyLoss":
+            out_size = 5
+        else:
+            out_size = 1 # test
         
         m = model_class(in_size, hid_size, out_size, n_layers)
         m = m.to(device)
@@ -120,13 +124,28 @@ class Trainer:
                 #print(out)
                 #print("OUT SHAPE", out.shape)
                 #print("LABELS SHAPE", labels.shape)
-                #print("LABELS", labels)
-                #out = out.reshape(out.shape[0]*out.shape[1], out.shape[2])
-                #print("NEW OUT SHAPE", out.shape)
-                #labels = labels.reshape(labels.shape[0]*labels.shape[1], 1)
-                #print("NEW LABELS SHAPE", labels.shape)
-                #out = out.reshape(out.shape[0], out.shape[2], out.shape[1]) #gör den till [50, 5, 102] ist för [50, 102, 5]
-                l = loss()(out.to(device), labels.float().to(device))
+                
+                
+                
+                
+                
+                
+                if loss_function == "CrossEntropyLoss":
+                    #out = out.reshape(out.shape[0]*out.shape[1], out.shape[2]).float()
+                    out = out.reshape(out.shape[0], out.shape[2], out.shape[1]) #gör den till [50, 5, 102] ist för [50, 102, 5]
+                    #print("NEW OUT SHAPE", out.shape)
+                    #labels = labels.reshape(labels.shape[0]*labels.shape[1]).long()
+                    #labels = labels.unsqueeze(2).long()
+                    labels = labels.long()
+                    #print("LABELS", labels)
+                    #print("NEW LABELS SHAPE", labels.shape) 
+                else:
+                    #print("OUT SHAPE", out.shape) # test
+                    #print("LABELS SHAPE", labels.shape) # test
+                    out = out.squeeze(2) # test
+                    #print("NEW OUT SHAPE", out.shape) # test
+                    labels = labels.float()
+                l = loss()(out.to(device), labels.to(device))
                 
                 tot_loss += l
                 l.backward()
@@ -135,7 +154,7 @@ class Trainer:
             epoch += 1
             
             
-#            validation
+#           validation
             pred = []
             y = []
             m.eval()
@@ -144,8 +163,12 @@ class Trainer:
                 for batch, labels in val_e:
                     with torch.no_grad():
                         out = m(batch.float().to(device), device)
-                        out = torch.round(out)
-                        out = out.reshape(-1).tolist()
+                        if loss_function == "CrossEntropyLoss":
+                            _, out = torch.max(out, 2)
+                        else:
+                            out = torch.round(out)
+                        
+                        out = out.reshape(-1).tolist()                        
                         labels = labels.reshape(-1).tolist()
                 pred.extend(out)
                 y.extend(labels)
@@ -162,7 +185,7 @@ class Trainer:
             "f1-score" : f1
         }
         
-        print("Model name: {}, \n Accuracy: {}, \n Precision: {}, Recall: {}, F1-Score:{}".format(mod_name, acc, prec, rec, f1))  
+        print(f"Model name: {mod_name}, \nAccuracy: {acc}, \nPrecision: {prec}, \nRecall: {rec}, \nF1-Score:{f1}")  
                         
             
         
