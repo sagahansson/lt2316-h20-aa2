@@ -93,6 +93,7 @@ class Trainer:
         loss_function = hyperparameters['loss_funct']
         print(loss_function)
         mod_name = hyperparameters['model_name']
+        hid_state = hyperparameters['hid_state'] # hid state test
         
         device = self.device
         
@@ -103,9 +104,11 @@ class Trainer:
         if loss_function == "CrossEntropyLoss":
             out_size = 5
         else:
-            out_size = 1 # test
-        
-        m = model_class(in_size, hid_size, out_size, n_layers)
+            out_size = 1
+        if hid_state:
+            out_size = 102 # hid state test
+            
+        m = model_class(in_size, hid_size, out_size, n_layers, hid_state) # hid state test
         m = m.to(device)
         loss = getattr(nn, loss_function)
         opt = getattr(optim, izer)(m.parameters(), lr=lr)
@@ -118,33 +121,23 @@ class Trainer:
                 opt.zero_grad()
                 #print("MODEL:", m)
                 #print("BATCH SHAPE", batch.shape)
-                out = m(batch.float().to(device), device)
-                
-                #out, b = torch.max(out, 2)
-                #print(out)
+                out = m(batch.float().to(device), device)                
                 #print("OUT SHAPE", out.shape)
                 #print("LABELS SHAPE", labels.shape)
                 
-                
-                
-                
-                
-                
-                if loss_function == "CrossEntropyLoss":
-                    #out = out.reshape(out.shape[0]*out.shape[1], out.shape[2]).float()
-                    out = out.reshape(out.shape[0], out.shape[2], out.shape[1]) #gör den till [50, 5, 102] ist för [50, 102, 5]
-                    #print("NEW OUT SHAPE", out.shape)
-                    #labels = labels.reshape(labels.shape[0]*labels.shape[1]).long()
-                    #labels = labels.unsqueeze(2).long()
-                    labels = labels.long()
-                    #print("LABELS", labels)
-                    #print("NEW LABELS SHAPE", labels.shape) 
+                if loss_function == "CrossEntropyLoss": # cross ent wants the out in a diff shape compared to mse and mae
+                    if not hid_state:
+                        out = out.reshape(out.shape[0], out.shape[2], out.shape[1])
+                        labels = labels.long()
+                    else: # hid state test
+                        out = out.unsqueeze(1)
+                        labels = labels.long()
+                    print("OUT SHAPE", out.shape)
+                    print("LABELS SHAPE", labels.shape)
                 else:
-                    #print("OUT SHAPE", out.shape) # test
-                    #print("LABELS SHAPE", labels.shape) # test
-                    out = out.squeeze(2) # test
-                    #print("NEW OUT SHAPE", out.shape) # test
-                    labels = labels.float()
+                    if not hid_state: # hid state test
+                        out = out.squeeze(2)
+                        labels = labels.float()
                 l = loss()(out.to(device), labels.to(device))
                 
                 tot_loss += l
