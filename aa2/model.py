@@ -12,11 +12,9 @@ class Net(nn.Module):
         self.fc = nn.Linear(hid, out_D)
     
     def forward(self, batch, device):
-        
         out, h_out = self.gru(batch)
         if self.hid_state:
-            pred = self.fc(h_out[-1])
+            pred = self.fc(h_out[-1]) # dim [batch_size, out_D]
         else:
-            pred = self.fc(out)
-        
+            pred = self.fc(out) # dim [batch_size, max_seq_len, out_D]
         return pred
